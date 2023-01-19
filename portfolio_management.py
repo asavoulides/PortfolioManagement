@@ -2,11 +2,17 @@ import tkinter as tk
 from tkinter import ttk
 import requests
 import json
+import matplotlib.pyplot as plt
+import datetime
 
 class Portfolio:
     def __init__(self):
         self.api_key = "ZOFF8JEDW0TCPKSS"
         self.portfolio = {}
+        self.root = tk.Tk()
+        self.plot_all_button = tk.Button(self.root, text="Plot All", command=self.plot_all)
+        self.plot_all_button.pack()
+        self.create_gui()
         
     def add_stock(self, symbol, shares):
         url = "https://www.alphavantage.co/query"
@@ -19,7 +25,37 @@ class Portfolio:
         data = json.loads(response.text)
         price = float(data["Global Quote"]["05. price"])
         self.portfolio[symbol] = {"shares": shares, "price": price}
-        
+    def plot_all(self):
+        now = datetime.datetime.now()
+        six_months_ago = now - datetime.timedelta(days=182)
+        symbols = list(self.portfolio.keys())
+        fig, axs = plt.subplots(len(symbols), 1, figsize=(10, 5*len(symbols)))
+
+        for i, symbol in enumerate(symbols):
+            url = "https://www.alphavantage.co/query"
+            params = {
+                "function": "TIME_SERIES_DAILY_ADJUSTED",
+                "symbol": symbol,
+                "apikey": self.api_key,
+                "outputsize": "compact",
+                "datatype": "json"
+            }
+            response = requests.get(url, params=params)
+            data = json.loads(response.text)
+
+            history = data["Time Series (Daily)"]
+            dates = []
+            values = []
+            for date in history:
+                if datetime.datetime.strptime(date, "%Y-%m-%d") < six_months_ago:
+                    break
+                dates.append(date)
+                values.append(float(history[date]["4. close"]))
+
+            axs[i].plot(dates, values)
+            axs[i].set_title(symbol)
+
+        plt.show()
     def remove_stock(self, symbol):
         del self.portfolio[symbol]
         
